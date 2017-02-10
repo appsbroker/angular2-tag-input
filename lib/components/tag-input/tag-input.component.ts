@@ -12,7 +12,7 @@ import {
   ViewChild
 } from '@angular/core';
 import { AbstractControl, ControlValueAccessor, NG_VALUE_ACCESSOR, FormBuilder, FormGroup } from '@angular/forms';
-import { Subscription } from 'rxjs';
+import { Subscription, Observable } from 'rxjs';
 
 import { KEYS } from '../../shared/tag-input-keys';
 
@@ -116,12 +116,14 @@ export class TagInputComponent implements ControlValueAccessor, OnDestroy, OnIni
   @Input() autocompleteSelectFirstItem: boolean = true;
   @Input() pasteSplitPattern: string = ',';
   @Input() placeholder: string = 'Add a tag';
+  @Input() autocompleteObservable: Observable<string[]>;
   @Output('addTag') addTag: EventEmitter<string> = new EventEmitter<string>();
   @Output('removeTag') removeTag: EventEmitter<string> = new EventEmitter<string>();
   @ViewChild('tagInputElement') tagInputElement: ElementRef;
 
   private canShowAutoComplete: boolean = false;
   private tagInputSubscription: Subscription;
+  private autocompleteSubscription: Subscription;
   private splitRegExp: RegExp;
   private get tagInputField(): AbstractControl {
     return this.tagInputForm.get('tagInputField');
@@ -156,17 +158,27 @@ export class TagInputComponent implements ControlValueAccessor, OnDestroy, OnIni
       tagInputField: ''
     });
 
-    this.tagInputSubscription = this.tagInputField.valueChanges
-    .do(value => {
-      this.autocompleteResults = this.autocompleteItems.filter(item => {
-        /**
-         * _isTagUnique makes sure to remove items from the autocompelte dropdown if they have
-         * already been added to the model, and allowDuplicates is false
-         */
-        return item.toLowerCase().indexOf(value.toLowerCase()) > -1 && this._isTagUnique(item);
-      });
-    })
-    .subscribe();
+    if (this.autocompleteObservable) {
+
+      this.autocompleteSubscription = this.autocompleteObservable
+        .subscribe(value => this.autocompleteResults = value);
+
+    } else {
+
+      this.tagInputSubscription = this.tagInputField.valueChanges
+        .do(value => {
+          this.autocompleteResults = this.autocompleteItems.filter(item => {
+            /**
+             * _isTagUnique makes sure to remove items from the autocompelte dropdown if they have
+             * already been added to the model, and allowDuplicates is false
+             */
+            return item.toLowerCase().indexOf(value.toLowerCase()) > -1 && this._isTagUnique(item);
+          });
+        })
+        .subscribe();
+
+    }
+
   }
 
   onKeydown(event: KeyboardEvent): void {
@@ -234,8 +246,10 @@ export class TagInputComponent implements ControlValueAccessor, OnDestroy, OnIni
   showAutocomplete(): boolean {
     return (
       this.autocomplete &&
-      this.autocompleteItems &&
-      this.autocompleteItems.length > 0 &&
+      (
+        this.autocompleteItems && this.autocompleteItems.length > 0 ||
+        this.autocompleteResults && this.autocompleteResults.length > 0
+      ) &&
       this.canShowAutoComplete &&
       this.inputValue.length > 0
     );
@@ -325,6 +339,14 @@ export class TagInputComponent implements ControlValueAccessor, OnDestroy, OnIni
   }
 
   ngOnDestroy() {
-    this.tagInputSubscription.unsubscribe();
+
+    if (this.tagInputSubscription) {
+      this.tagInputSubscription.unsubscribe();
+    }
+
+    if (this.autocompleteSubscription) {
+      this.autocompleteSubscription.unsubscribe();
+    }
+
   }
 }
