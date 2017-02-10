@@ -152,6 +152,7 @@ export class TagInputComponent implements ControlValueAccessor, OnDestroy, OnIni
     private elementRef: ElementRef) {}
 
   ngOnInit() {
+
     this.splitRegExp = new RegExp(this.pasteSplitPattern);
 
     this.tagInputForm = this.fb.group({
@@ -162,6 +163,9 @@ export class TagInputComponent implements ControlValueAccessor, OnDestroy, OnIni
 
       this.autocompleteSubscription = this.autocompleteObservable
         .subscribe(value => this.autocompleteResults = value);
+
+      this.tagInputSubscription = this.tagInputField.valueChanges
+        .subscribe(() => this.autocompleteResults = []);
 
     } else {
 
@@ -340,9 +344,7 @@ export class TagInputComponent implements ControlValueAccessor, OnDestroy, OnIni
 
   ngOnDestroy() {
 
-    if (this.tagInputSubscription) {
-      this.tagInputSubscription.unsubscribe();
-    }
+    this.tagInputSubscription.unsubscribe();
 
     if (this.autocompleteSubscription) {
       this.autocompleteSubscription.unsubscribe();
