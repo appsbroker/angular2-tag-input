@@ -33,13 +33,14 @@ export interface AutoCompleteItem {
     <rl-tag-input-item
       [text]="tag"
       [index]="index"
+      [displayBy]="displayBy"
       [selected]="selectedTag === index"
       (tagRemoved)="_removeTag($event)"
       *ngFor="let tag of tagsList; let index = index">
     </rl-tag-input-item>
-    <form [formGroup]="tagInputForm" class="ng2-tag-input-form">
+    <form [formGroup]="tagInputForm" class="angular-tag-input-form">
       <input
-        class="ng2-tag-input-field"
+        class="angular-tag-input-field"
         type="text"
         #tagInputElement
         formControlName="tagInputField"
@@ -51,6 +52,7 @@ export interface AutoCompleteItem {
 
       <div *ngIf="showAutocomplete()" class="rl-tag-input-autocomplete-container">
         <rl-tag-input-autocomplete
+          [displayBy]="autocompleteDisplayBy"
           [items]="autocompleteResults"
           [selectFirstItem]="autocompleteSelectFirstItem"
           (itemSelected)="onAutocompleteSelect($event)"
@@ -61,8 +63,6 @@ export interface AutoCompleteItem {
   `,
   styles: [`
     :host {
-      font-family: "Roboto", "Helvetica Neue", sans-serif;
-      font-size: 16px;
       display: block;
       box-shadow: 0 1px #ccc;
       padding: 8px 0 6px 0;
@@ -70,13 +70,11 @@ export interface AutoCompleteItem {
       transition: box-shadow 0.12s ease-out;
     }
 
-     :host .ng2-tag-input-form {
+     :host .angular-tag-input-form {
       display: inline;
     }
 
-     :host .ng2-tag-input-field {
-      font-family: "Roboto", "Helvetica Neue", sans-serif;
-      font-size: 16px;
+     :host .angular-tag-input-field {
       display: inline-block;
       width: auto;
       box-shadow: none;
@@ -84,7 +82,7 @@ export interface AutoCompleteItem {
       padding: 8px 0;
     }
 
-     :host .ng2-tag-input-field:focus {
+     :host .angular-tag-input-field:focus {
       outline: 0;
     }
 
@@ -92,36 +90,35 @@ export interface AutoCompleteItem {
       position: relative;
       z-index: 10;
     }
-
-    :host.ng2-tag-input-focus {
-      box-shadow: 0 2px #0d8bff;
-    }
   `],
   providers: [
-    {provide: NG_VALUE_ACCESSOR, useExisting: forwardRef(() => TagInputComponent), multi: true},
+    { provide: NG_VALUE_ACCESSOR, useExisting: forwardRef(() => TagInputComponent), multi: true },
   ]
 })
 export class TagInputComponent implements ControlValueAccessor, OnDestroy, OnInit {
-  @HostBinding('class.ng2-tag-input-focus') isFocused;
-  @Input() addOnBlur: boolean = true;
-  @Input() addOnComma: boolean = true;
-  @Input() addOnEnter: boolean = true;
-  @Input() addOnPaste: boolean = true;
-  @Input() addOnSpace: boolean = false;
-  @Input() allowDuplicates: boolean = false;
+  @HostBinding('class.angular-tag-input-focus') isFocused;
+  @Input() addOnBlur = true;
+  @Input() addOnComma = true;
+  @Input() addOnEnter = true;
+  @Input() addOnPaste = true;
+  @Input() addOnSpace = false;
+  @Input() allowDuplicates = false;
   @Input() allowedTagsPattern: RegExp = /.+/;
-  @Input() autocomplete: boolean = false;
-  @Input() autocompleteItems: string[] = [];
-  @Input() autocompleteMustMatch: boolean = true;
-  @Input() autocompleteSelectFirstItem: boolean = true;
-  @Input() pasteSplitPattern: string = ',';
-  @Input() placeholder: string = 'Add a tag';
-  @Input() autocompleteObservable: Observable<string[]>;
+  @Input() autocomplete = false;
+  @Input() autocompleteItems: Array<any> = [];
+  @Input() autocompleteMustMatch = true;
+  @Input() autocompleteSelectFirstItem = true;
+  @Input() autocompleteDisplayBy = 'name';
+  @Input() pasteSplitPattern = ',';
+  @Input() placeholder = 'Add a tag';
+  @Input() autocompleteObservable: Observable<Array<any>>;
+  @Input() displayBy = 'name';
+  @Input() convertOutputToObject = false;
   @Output('addTag') addTag: EventEmitter<string> = new EventEmitter<string>();
   @Output('removeTag') removeTag: EventEmitter<string> = new EventEmitter<string>();
   @ViewChild('tagInputElement') tagInputElement: ElementRef;
 
-  private canShowAutoComplete: boolean = false;
+  private canShowAutoComplete = false;
   private tagInputSubscription: Subscription;
   private autocompleteSubscription: Subscription;
   private splitRegExp: RegExp;
@@ -134,7 +131,7 @@ export class TagInputComponent implements ControlValueAccessor, OnDestroy, OnIni
 
   public tagInputForm: FormGroup;
   public autocompleteResults: string[] = [];
-  public tagsList: string[] = [];
+  public tagsList: Array<any> = [];
   public selectedTag: number;
 
   @HostListener('document:click', ['$event', '$event.target']) onDocumentClick(event: MouseEvent, target: HTMLElement) {
@@ -149,7 +146,7 @@ export class TagInputComponent implements ControlValueAccessor, OnDestroy, OnIni
 
   constructor(
     private fb: FormBuilder,
-    private elementRef: ElementRef) {}
+    private elementRef: ElementRef) { }
 
   ngOnInit() {
 
@@ -160,15 +157,12 @@ export class TagInputComponent implements ControlValueAccessor, OnDestroy, OnIni
     });
 
     if (this.autocompleteObservable) {
-
       this.autocompleteSubscription = this.autocompleteObservable
         .subscribe(value => this.autocompleteResults = value);
 
       this.tagInputSubscription = this.tagInputField.valueChanges
         .subscribe(() => this.autocompleteResults = []);
-
     } else {
-
       this.tagInputSubscription = this.tagInputField.valueChanges
         .do(value => {
           this.autocompleteResults = this.autocompleteItems.filter(item => {
@@ -176,13 +170,13 @@ export class TagInputComponent implements ControlValueAccessor, OnDestroy, OnIni
              * _isTagUnique makes sure to remove items from the autocompelte dropdown if they have
              * already been added to the model, and allowDuplicates is false
              */
-            return item.toLowerCase().indexOf(value.toLowerCase()) > -1 && this._isTagUnique(item);
+            let itemToCheck = typeof item === 'object' ? item[this.autocompleteDisplayBy] : item;
+
+            return itemToCheck.toLowerCase().indexOf(value.toLowerCase()) > -1 && this._isTagUnique(item);
           });
         })
         .subscribe();
-
     }
-
   }
 
   onKeydown(event: KeyboardEvent): void {
@@ -265,17 +259,33 @@ export class TagInputComponent implements ControlValueAccessor, OnDestroy, OnIni
     return tags.filter((tag) => !!tag);
   }
 
-  private _isTagValid(tagString: string): boolean {
-    return this.allowedTagsPattern.test(tagString) &&
-           this._isTagUnique(tagString);
+  private _isTagValid(tag: any): boolean {
+    const valueToCheck = typeof tag === 'object' ? tag[this.displayBy] : tag;
+    return this.allowedTagsPattern.test(valueToCheck) && this._isTagUnique(tag);
   }
 
-  private _isTagUnique(tagString: string): boolean {
-    return this.allowDuplicates ? true : this.tagsList.indexOf(tagString) === -1;
+  private _isTagUnique(tag: any): boolean {
+    if (this.allowDuplicates) { return true };
+
+    const valueToCheck = typeof tag === 'object' ? tag[this.displayBy] : tag;
+    for (let i = 0; i < this.tagsList.length; i++) {
+      const current = this.tagsList[i];
+      if (typeof current === 'object' && current[this.displayBy] === valueToCheck) { return false };
+      if (current === valueToCheck) { return false };
+    }
+
+    return true;
   }
 
-  private _isTagAutocompleteItem(tagString: string): boolean {
-    return this.autocompleteItems.indexOf(tagString) > -1;
+  private _isTagAutocompleteItem(tag: any): boolean {
+    const valueToCheck = typeof tag === 'object' ? tag[this.autocompleteDisplayBy] : tag;
+    for (let i = 0; i < this.autocompleteItems.length; i++) {
+      const current = this.autocompleteItems[i];
+      if (typeof current === 'object' && current[this.autocompleteDisplayBy] === valueToCheck) { return false };
+      if (current === valueToCheck) { return false };
+    }
+
+    return true;
   }
 
   private _emitTagAdded(addedTags: string[]): void {
@@ -286,11 +296,32 @@ export class TagInputComponent implements ControlValueAccessor, OnDestroy, OnIni
     this.removeTag.emit(removedTag);
   }
 
-  private _addTags(tags: string[]): void {
-    let validTags = tags.map(tag => tag.trim())
-                        .filter(tag => this._isTagValid(tag))
-                        .filter((tag, index, tagArray) => tagArray.indexOf(tag) === index)
-                        .filter(tag => (this.showAutocomplete() && this.autocompleteMustMatch) ? this._isTagAutocompleteItem(tag) : true);
+  private _addTags(tags: any[]): void {
+    let validTags = tags.filter(tag => this._isTagValid(tag))
+      .filter((tag, index, tagArray) => tagArray.indexOf(tag) === index)
+      .filter(tag => (this.showAutocomplete() && this.autocompleteMustMatch) ? this._isTagAutocompleteItem(tag) : true)
+      .map(tag => {
+        // if the element comes from autocomplete, we must move the value from [autocompleteDisplayBy] to [displayBy]
+        if (typeof tag === 'object' && tag[this.autocompleteDisplayBy] !== undefined) {
+          /**
+           * Due to reference nature of object passed in javascript, it's better to create a new object instead of modifying
+           * the current one. This keep the autocomplete list untouched
+           */
+          let copiedTag = Object.assign({}, tag);
+          copiedTag[this.displayBy] = copiedTag[this.autocompleteDisplayBy];
+          delete copiedTag[this.autocompleteDisplayBy];
+          tag = copiedTag;
+        }
+        return tag;
+      });
+
+    if (this.convertOutputToObject) {
+      for (let i = 0; i < validTags.length; i++) {
+        if (typeof validTags[i] === 'object') { continue };
+
+        validTags[i] = { [this.displayBy]: validTags[i] };
+      }
+    }
 
     this.tagsList = this.tagsList.concat(validTags);
     this._resetSelected();
