@@ -8,21 +8,20 @@ import { KEYS } from '../../shared/tag-input-keys';
   selector: 'rl-tag-input-autocomplete',
   template: `
     <div
-      *ngFor="let item of items; let itemIndex = index"
+      *ngFor="let item of itemsToParse; let itemIndex = index"
       [ngClass]="{ 'is-selected': selectedItemIndex === itemIndex }"
       (mousedown)="selectItem(itemIndex)"
       class="rl-autocomplete-item">
-      {{item}}
+      {{item[displayBy]}}
     </div>
   `,
   styles: [`
     :host {
+      background-color:fuchsia;
       box-shadow: 0 1.5px 4px rgba(0, 0, 0, 0.24), 0 1.5px 6px rgba(0, 0, 0, 0.12);
       display: block;
       position: absolute;
       top: 100%;
-      font-family: "Roboto", "Helvetica Neue", sans-serif;
-      font-size: 16px;
       color: #444444;
       background: white;
       padding: 8px 0;
@@ -40,50 +39,65 @@ import { KEYS } from '../../shared/tag-input-keys';
   `]
 })
 export class TagInputAutocompleteComponent implements OnChanges, OnDestroy, OnInit {
-  @Input() items: string[];
-  @Input() selectFirstItem: boolean = false;
+  @Input() displayBy: string;
+  @Input() selectFirstItem = false;
   @Output() itemSelected: EventEmitter<string> = new EventEmitter<string>();
   @Output() enterPressed: EventEmitter<any> = new EventEmitter<any>();
   public selectedItemIndex: number = null;
   private keySubscription: Subscription;
   private get itemsCount(): Number {
-    return this.items ? this.items.length : 0;
+    return this.itemsToParse ? this.itemsToParse.length : 0;
+  }
+
+  private itemsToParse: Array<any> = [];
+
+  @Input()
+  set items(value: Array<any>) {
+    this.itemsToParse = [];
+    for (let i = 0; i < value.length; i++) {
+      const currentItem = value[0];
+      if (typeof currentItem === 'object') {
+        this.itemsToParse.push(currentItem);
+      } else {
+        this.itemsToParse.push({ [this.displayBy]: currentItem });
+      }
+    }
   }
 
   constructor(private elementRef: ElementRef) { }
 
   ngOnInit() {
     this.keySubscription = Observable.fromEvent(window, 'keydown')
-    .filter(
+      .filter(
       (event: KeyboardEvent) =>
-      event.keyCode === KEYS.upArrow ||
-      event.keyCode === KEYS.downArrow ||
-      event.keyCode === KEYS.enter ||
-      event.keyCode === KEYS.esc
-    )
-    .do((event: KeyboardEvent) => {
-      switch (event.keyCode) {
-        case KEYS.downArrow:
-          this.handleDownArrow();
-          break;
+        event.keyCode === KEYS.upArrow ||
+        event.keyCode === KEYS.downArrow ||
+        event.keyCode === KEYS.enter ||
+        event.keyCode === KEYS.esc
+      )
+      .do((event: KeyboardEvent) => {
+        switch (event.keyCode) {
+          case KEYS.downArrow:
+            this.handleDownArrow();
+            break;
 
-        case KEYS.upArrow:
-          this.handleUpArrow();
-          break;
+          case KEYS.upArrow:
+            this.handleUpArrow();
+            break;
 
-        case KEYS.enter:
-          this.selectItem();
-          this.enterPressed.emit();
-          break;
+          case KEYS.enter:
+            this.selectItem();
+            this.enterPressed.emit();
+            break;
 
-        case KEYS.esc:
-          break;
-      }
+          case KEYS.esc:
+            break;
+        }
 
-      event.stopPropagation();
-      event.preventDefault();
-    })
-    .subscribe();
+        event.stopPropagation();
+        event.preventDefault();
+      })
+      .subscribe();
   }
 
   ensureHighlightVisible() {
@@ -140,7 +154,7 @@ export class TagInputAutocompleteComponent implements OnChanges, OnDestroy, OnIn
     this.ensureHighlightVisible();
   }
 
-  handleUpArrow() {
+  handleUpArrow(): void | boolean {
     if (this.selectedItemIndex === null) {
       this.goToBottom(this.itemsCount);
       return false;
@@ -148,17 +162,17 @@ export class TagInputAutocompleteComponent implements OnChanges, OnDestroy, OnIn
     this.goToPrevious();
   }
 
-  handleDownArrow() {
+  handleDownArrow(): void | boolean {
     // Initialize to zero if first time results are shown
     if (this.selectedItemIndex === null) {
-        this.goToTop();
-        return false;
+      this.goToTop();
+      return false;
     }
     this.goToNext();
   }
 
   selectItem(itemIndex?: number): void {
-    let itemToEmit = itemIndex ? this.items[itemIndex] : this.items[this.selectedItemIndex];
+    let itemToEmit = itemIndex ? this.itemsToParse[itemIndex] : this.itemsToParse[this.selectedItemIndex];
     if (itemToEmit) {
       this.itemSelected.emit(itemToEmit);
     }

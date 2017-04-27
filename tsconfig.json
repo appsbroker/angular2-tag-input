@@ -1,26 +1,45 @@
 {
   "compilerOptions": {
-    "removeComments": true,
     "target": "es5",
     "module": "commonjs",
     "moduleResolution": "node",
     "declaration": true,
+    "noEmitHelpers": false,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "sourceMap": true,
-    "outDir": "./dist",
+    "pretty": true,
+    "allowUnreachableCode": true,
+    "allowUnusedLabels": false,
+    "noImplicitAny": false,
+    "noImplicitReturns": true,
+    "noImplicitUseStrict": false,
+    "noFallthroughCasesInSwitch": false,
+    "allowSyntheticDefaultImports": true,
+    "suppressExcessPropertyErrors": true,
+    "suppressImplicitAnyIndexErrors": true,
+    "outDir": "dist",
+    "declarationDir": "dist",
     "lib": ["es6", "dom"],
+    "skipLibCheck": true,
     "typeRoots": [
       "./node_modules/@types"
     ]
   },
   "files": [
-    "./index.ts"
-  ],
-  "include": [
-    "lib"
+    "index.ts"
   ],
   "exclude": [
-    "node_modules"
-  ]
+    "node_modules",
+    "demo"
+  ],
+  "compileOnSave": false,
+  "buildOnSave": false,
+  "awesomeTypescriptLoaderOptions": {
+    "forkChecker": false
+  },
+  "angularCompilerOptions": {
+    "genDir": "dist/",
+    "skipMetadataEmit": false
+  }
 }

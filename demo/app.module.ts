@@ -1,6 +1,8 @@
-import { NgModule } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
-import { FormsModule } from '@angular/forms';
+import { ModuleWithProviders, NgModule } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+
 import { AppComponent } from './app.component';
 import { RlTagInputModule } from '../lib/tag-input.module';
 
@@ -11,10 +13,13 @@ import { RlTagInputModule } from '../lib/tag-input.module';
   imports: [
     BrowserModule,
     FormsModule,
+    CommonModule,
+    FormsModule,
+    ReactiveFormsModule,
     RlTagInputModule
   ],
   bootstrap: [
     AppComponent
   ]
 })
-export class AppModule {}
+export class AppModule { }
